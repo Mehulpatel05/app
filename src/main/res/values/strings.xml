@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AI Features Hub</string>
+    <string name="text_generation">Text Generation</string>
+    <string name="image_generation">Image Generation</string>
+    <string name="sentiment_analysis">Sentiment Analysis</string>
+    <string name="object_detection">Object Detection</string>
+    <string name="video_analysis">Video Analysis</string>
+</resources>
