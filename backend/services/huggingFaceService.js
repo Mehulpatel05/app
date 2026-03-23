@@ -55,7 +55,7 @@ const textGenerationService = {
 // Service for Image Generation
 const imageGenerationService = {
   async generate(prompt) {
-    const model = process.env.IMAGE_GENERATION_MODEL || 'stabilityai/stable-diffusion-2-1';
+    const model = process.env.IMAGE_GENERATION_MODEL || 'stabilityai/stable-diffusion-xl-base-1.0'; // ✅ FIXED
     const url = `${BASE_URL}/${model}`;
 
     try {
@@ -64,7 +64,7 @@ const imageGenerationService = {
         { inputs: prompt },
         {
           headers,
-          timeout: parseInt(process.env.IMAGE_GENERATION_TIMEOUT || 60000),
+          timeout: 120000,
           responseType: 'arraybuffer',
         }
       );
@@ -72,16 +72,34 @@ const imageGenerationService = {
       return {
         success: true,
         imageBuffer: response.data,
-        model: model,
+        model,
         contentType: response.headers['content-type'] || 'image/jpeg',
       };
+
     } catch (error) {
-      console.error('[ImageGeneration] Error:', error.message);
-      return {
-        success: false,
-        error: error.message,
-        model: model,
-      };
+      console.error('[ImageGeneration] FULL ERROR:', error.response?.data || error.message);
+
+      // 🔥 Retry once
+      try {
+        await new Promise(res => setTimeout(res, 3000));
+
+        const retry = await axios.post(url, { inputs: prompt }, {
+          headers,
+          responseType: 'arraybuffer',
+        });
+
+        return {
+          success: true,
+          imageBuffer: retry.data,
+          model,
+        };
+
+      } catch (retryError) {
+        return {
+          success: false,
+          error: retryError.response?.data || retryError.message,
+        };
+      }
     }
   },
 };
