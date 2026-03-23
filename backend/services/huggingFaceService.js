@@ -2,6 +2,19 @@ const axios = require('axios');
 const crypto = require('crypto');
 
 const BASE_URL = 'https://router.huggingface.co/hf-inference/models';
+
+// Helper to parse arraybuffer errors
+function parseBufferError(error) {
+  if (error.response?.data) {
+    try {
+      const parsed = JSON.parse(Buffer.from(error.response.data).toString());
+      return parsed.error || JSON.stringify(parsed);
+    } catch (e) {
+      return Buffer.from(error.response.data).toString();
+    }
+  }
+  return error.message;
+}
 const API_KEY = process.env.HUGGING_FACE_API_KEY;
 
 if (!API_KEY) {
@@ -16,7 +29,7 @@ const headers = {
 // Service for Text Generation
 const textGenerationService = {
   async generate(prompt) {
-    const model = process.env.TEXT_GENERATION_MODEL || 'mistralai/Mistral-7B-Instruct-v0.1';
+    const model = process.env.TEXT_GENERATION_MODEL || 'HuggingFaceH4/zephyr-7b-beta';
     const url = `${BASE_URL}/${model}`;
 
     try {
@@ -55,7 +68,7 @@ const textGenerationService = {
 // Service for Image Generation
 const imageGenerationService = {
   async generate(prompt) {
-    const model = process.env.IMAGE_GENERATION_MODEL || 'stabilityai/stable-diffusion-2-1';
+    const model = process.env.IMAGE_GENERATION_MODEL || 'stabilityai/stable-diffusion-xl-base-1.0';
     const url = `${BASE_URL}/${model}`;
 
     try {
@@ -63,28 +76,27 @@ const imageGenerationService = {
         url,
         { inputs: prompt },
         {
-          headers,
-          timeout: parseInt(process.env.IMAGE_GENERATION_TIMEOUT || 60000),
+          headers: { ...headers, 'Content-Type': 'application/json', 'Accept': 'image/png' },
+          timeout: parseInt(process.env.IMAGE_GENERATION_TIMEOUT || 120000),
           responseType: 'arraybuffer',
         }
       );
 
+      // Check if response is actually JSON error (not image)
+      const contentType = response.headers['content-type'] || '';
+      if (contentType.includes('application/json')) {
+        const errMsg = JSON.parse(Buffer.from(response.data).toString());
+        throw new Error(errMsg.error || JSON.stringify(errMsg));
+      }
+
       return {
         success: true,
         imageBuffer: response.data,
-        model: model,
-        contentType: response.headers['content-type'] || 'image/jpeg',
+        model,
+        contentType: contentType || 'image/png',
       };
     } catch (error) {
-      let errorMessage = error.message;
-      if (error.response?.data) {
-        try {
-          const parsed = JSON.parse(Buffer.from(error.response.data).toString());
-          errorMessage = parsed.error || JSON.stringify(parsed);
-        } catch (e) {
-          errorMessage = Buffer.from(error.response.data).toString();
-        }
-      }
+      const errorMessage = parseBufferError(error);
       console.error('[ImageGeneration] CLEAN ERROR:', errorMessage);
       return { success: false, error: errorMessage, model };
     }
