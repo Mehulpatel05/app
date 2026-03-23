@@ -1,7 +1,7 @@
 const axios = require('axios');
 const crypto = require('crypto');
 
-const BASE_URL = 'https://api-inference.huggingface.co/models';
+const BASE_URL = 'https://router.huggingface.co/hf-inference/models';
 const API_KEY = process.env.HUGGING_FACE_API_KEY;
 
 if (!API_KEY) {
